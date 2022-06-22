@@ -196,8 +196,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	std::vector<ID3D12Resource*> backBuffers;
 	backBuffers.resize(swapChainDesc.BufferCount);
 
-
-
 	// スワップチェーンの全てのバッファについて処理する
 	for (size_t i = 0; i < backBuffers.size(); i++) {
 		// スワップチェーンからバッファを取得
@@ -220,13 +218,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	UINT64 fenceVal = 0;
 	result = device->CreateFence(fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 
-
-
-
-
-
 	////////////////////////////////////////////////////////////////////////////////////// DirectX初期化処理 ここまで//////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////DirectX初期化  ここから////////////////////////////////////////////////////////////////////////////////////////
+	
 	IDirectInput8* directInput = nullptr;
 	result = DirectInput8Create(w.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
 	assert(SUCCEEDED(result));
@@ -237,7 +230,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	assert(SUCCEEDED(result));
 	result = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(result));
-	//////////////////////////////////////////////////////////////////////////////////////DirectX初期化  ここまで/////////////////////////////////////////////////////////////////////////////////////////
+
 	// 頂点データ構造体
 	struct Vertex
 	{
@@ -254,11 +247,66 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//};
 	// 頂点データ
 	Vertex vertices[] =
-	{    //x      y     z        u     v
-		{{-50.0f,-50.0f,0.0f},{0.0f,1.0f}},//左下
-		{{-50.0f,50.0f,0.0f},{0.0f,0.0f}},//左上
-		{{50.0f,-50.0f,0.0f},{1.0f,1.0f}},//右下
-		{{50.0f,50.0f,0.0f},{1.0f,0.0f}},//右上
+	{  
+		//前
+		//x      y     z        u     v
+		{{-5.0f,-5.0f,-5.0f},{0.0f,1.0f}},//左下
+		{{-5.0f, 5.0f,-5.0f},{0.0f,0.0f}},//左上
+		{{ 5.0f,-5.0f,-5.0f},{1.0f,1.0f}},//右下
+		{{ 5.0f, 5.0f,-5.0f},{1.0f,0.0f}},//右上
+
+		//後(前目とZ座標の符号が逆)
+		{{-5.0f,-5.0f, 5.0f},{0.0f,1.0f}},//左下
+		{{-5.0f, 5.0f, 5.0f},{0.0f,0.0f}},//左上
+		{{ 5.0f,-5.0f, 5.0f},{1.0f,1.0f}},//右下
+		{{ 5.0f, 5.0f, 5.0f},{1.0f,0.0f}},//右上
+
+		//左
+		{{-5.0f,-5.0f,-5.0f},{0.0f,1.0f}},//左下
+		{{-5.0f,-5.0f, 5.0f},{0.0f,0.0f}},//左上
+		{{-5.0f, 5.0f,-5.0f},{1.0f,1.0f}},//右下
+		{{-5.0f, 5.0f, 5.0f},{1.0f,0.0f}},//右上
+
+		//右
+		{{ 5.0f,-5.0f,-5.0f},{0.0f,1.0f}},//左下
+		{{ 5.0f,-5.0f, 5.0f},{0.0f,0.0f}},//左上
+		{{ 5.0f, 5.0f,-5.0f},{1.0f,1.0f}},//右下
+		{{ 5.0f, 5.0f, 5.0f},{1.0f,0.0f}},//右上
+
+		//下
+		{{-5.0f,-5.0f,-5.0f},{0.0f,1.0f}},//左下
+		{{-5.0f,-5.0f, 5.0f},{0.0f,0.0f}},//左上
+		{{ 5.0f,-5.0f,-5.0f},{1.0f,1.0f}},//右下
+		{{ 5.0f,-5.0f, 5.0f},{1.0f,0.0f}},//右上
+
+		//上
+		{{-5.0f, 5.0f,-5.0f},{0.0f,1.0f}},//左下
+		{{-5.0f, 5.0f, 5.0f},{0.0f,0.0f}},//左上
+		{{ 5.0f, 5.0f,-5.0f},{1.0f,1.0f}},//右下
+		{{ 5.0f, 5.0f, 5.0f},{1.0f,0.0f}},//右上
+	};
+	// インデックスデータ
+	unsigned short indices[] =
+	{
+		//前
+		   0,1,2,
+		   1,2,3,
+		//後
+		    4,5,6,
+			5,6,7,
+		//左
+		    8,9,10,
+			9,10,11,
+		//右
+		   12,13,14,
+           13,14,15,
+		//下
+		   16,17,18,
+		   17,18,19,
+		//上
+		   20,21,22,
+		   21,22,23,
+          			
 	};
 	// 頂点データ
 	//XMFLOAT3 vertices[] = {
@@ -277,12 +325,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//	1, 2, 3, // 三角形2つ目
 	//};
 
-	// インデックスデータ
-	unsigned short indices[] = {
-		0, 1, 2, // 三角形1つ目
-		1, 2, 3, // 三角形2つ目
-	};
-
+	
 	// 頂点データ全体のサイズ = 頂点データ一つ分のサイズ * 頂点データの要素数
 	//UINT sizeVB = static_cast<UINT>(sizeof(XMFLOAT3) * _countof(vertices));
 	// 頂点データ全体のサイズ = 頂点データ一つ分のサイズ * 頂点データの要素数
@@ -641,7 +684,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = constBuffMaterial->Map(0, nullptr, (void**)&constMapMaterial); // マッピング
 	assert(SUCCEEDED(result));
 	// 値を書き込むと自動的に転送される
-	constMapMaterial->color = XMFLOAT4(1, 0, 0, 0.5f);              // RGBAで半透明の赤
+	constMapMaterial->color = XMFLOAT4(1, 0, 0, 1);              // RGBAで半透明の赤
 
 	//// 横方向ピクセル数
 	const size_t textureWidth = 256;

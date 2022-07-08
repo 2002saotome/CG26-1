@@ -78,8 +78,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 
 
-
-
 	HRESULT result;
 	ID3D12Device* device = nullptr;
 	IDXGIFactory7* dxgiFactory = nullptr;
@@ -106,11 +104,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		// 動的配列に追加する
 		adapters.push_back(tmpAdapter);
 	}
-
-
-
-
-
 
 	// 妥当なアダプタを選別する
 	for (size_t i = 0; i < adapters.size(); i++) {
@@ -352,9 +345,33 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		   18,17,19,
 		//上
 		   20,21,22,
-		   22,21,23,
-          			
+		   22,21,23, 			
 	};
+
+	for (int i = 0; i < _countof(indices) / 3; i++)
+	{
+		//三角形1つごとに計算していく
+		//三角形のインデックスを取り出して、一時的な変数に入れる
+		unsigned short index0 = indices[i * 3 + 0];
+		unsigned short index1 = indices[i * 3 + 1];
+		unsigned short index2 = indices[i * 3 + 2];
+		//三角形を構成する頂点座標をベクトルに代入
+		XMVECTOR p0 = XMLoadFloat3(&vertices[index0].pos);
+		XMVECTOR p1 = XMLoadFloat3(&vertices[index1].pos);
+		XMVECTOR p2 = XMLoadFloat3(&vertices[index2].pos);
+		//p0→p1ベクトル、p0→p2ベクトルに代入
+		XMVECTOR v1 = XMVectorSubtract(p1, p0);
+		XMVECTOR v2 = XMVectorSubtract(p2, p0);
+		//外積は両方から垂直なベクトル
+		XMVECTOR normal = XMVector3Cross(v1, v2);
+		//正規化(長さを1にする)
+		normal = XMVector3Normalize(normal);
+		//求めた法線を頂点データに代入
+		XMStoreFloat3(&vertices[index0].normal, normal);
+		XMStoreFloat3(&vertices[index1].normal, normal);
+		XMStoreFloat3(&vertices[index2].normal, normal);
+	}
+
 	// 頂点データ
 	//XMFLOAT3 vertices[] = {
 	//{ -0.5f, -0.5f, 0.0f }, // 左下
@@ -743,7 +760,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = constBuffMaterial->Map(0, nullptr, (void**)&constMapMaterial); // マッピング
 	assert(SUCCEEDED(result));
 	// 値を書き込むと自動的に転送される
-	constMapMaterial->color = XMFLOAT4(1, 0, 0, 1);              // RGBAで半透明の赤
+	constMapMaterial->color = XMFLOAT4(1, 1, 0, 1);              // RGBAで半透明の赤
 
 	//// 横方向ピクセル数
 	const size_t textureWidth = 256;
@@ -1097,8 +1114,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		// 再びコマンドリストを貯める準備
 		result = commandList->Reset(cmdAllocator, nullptr);
 		assert(SUCCEEDED(result));
-
-
 
 
 		// DirectX毎フレーム処理 ここまで

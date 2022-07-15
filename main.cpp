@@ -678,8 +678,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	//***********************************************************************
 	//05_02 2Dゲーム
 	//***********************************************************************
-	ID3D12Resource* constBuffTransform = nullptr;
-	ConstBufferDataTransform* constMapTransform = nullptr;
+	//1つ目
+	ID3D12Resource* constBuffTransform0 = nullptr;
+	ConstBufferDataTransform* constMapTransform0 = nullptr;
 	{
 		// ヒープ設定
 		D3D12_HEAP_PROPERTIES cbHeapProp{};
@@ -702,25 +703,63 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			&cbResourceDesc, // リソース設定
 			D3D12_RESOURCE_STATE_GENERIC_READ,
 			nullptr,
-			IID_PPV_ARGS(&constBuffTransform));
+			IID_PPV_ARGS(&constBuffTransform0));
 		assert(SUCCEEDED(result));
 
 		// 定数バッファのマッピング
 		//ConstBufferDataMaterial* constMapMaterial = nullptr;
 
-		result = constBuffTransform->Map(0, nullptr, (void**)&constMapTransform); // マッピング
+		result = constBuffTransform0->Map(0, nullptr, (void**)&constMapTransform0); // マッピング
+		assert(SUCCEEDED(result));
+	}
+
+
+	//2つ目
+	ID3D12Resource* constBuffTransform1 = nullptr;
+	ConstBufferDataTransform* constMapTransform1 = nullptr;
+	{
+		// ヒープ設定
+		D3D12_HEAP_PROPERTIES cbHeapProp{};
+		cbHeapProp.Type = D3D12_HEAP_TYPE_UPLOAD;                   // GPUへの転送用
+		// リソース設定
+		D3D12_RESOURCE_DESC cbResourceDesc{};
+		cbResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		cbResourceDesc.Width = (sizeof(ConstBufferDataTransform) + 0xff) & ~0xff;   // 256バイトアラインメント
+		cbResourceDesc.Height = 1;
+		cbResourceDesc.DepthOrArraySize = 1;
+		cbResourceDesc.MipLevels = 1;
+		cbResourceDesc.SampleDesc.Count = 1;
+		cbResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		//ID3D12Resource* constBuffMaterial = nullptr;
+
+		// 定数バッファの生成
+		result = device->CreateCommittedResource(
+			&cbHeapProp, // ヒープ設定
+			D3D12_HEAP_FLAG_NONE,
+			&cbResourceDesc, // リソース設定
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&constBuffTransform1));
 		assert(SUCCEEDED(result));
 
+		// 定数バッファのマッピング
+		//ConstBufferDataMaterial* constMapMaterial = nullptr;
+
+		result = constBuffTransform1->Map(0, nullptr, 
+		(void**)&constMapTransform1); // マッピング
+		assert(SUCCEEDED(result));
 	}
+
+
 	//単位行列を代入
-	constMapTransform->mat = XMMatrixIdentity();
+	constMapTransform0->mat = XMMatrixIdentity();
 	/*constMapTransform->mat.r[0].m128_f32[0] = 2.0f / 1280;
 	constMapTransform->mat.r[1].m128_f32[1] = -2.0f / 720;
 	constMapTransform->mat.r[3].m128_f32[0] = -1.0f;
 	constMapTransform->mat.r[3].m128_f32[1] = 1.0f;*/
 
 	//並行投影行列の計算
-	constMapTransform->mat = XMMatrixOrthographicOffCenterLH(0, 1280, 720, 0, 0, 1);
+	constMapTransform0->mat = XMMatrixOrthographicOffCenterLH(0, 1280, 720, 0, 0, 1);
 	//透視投影変換行列の計算
 	XMMATRIX matProjection = XMMatrixPerspectiveFovLH
 	(XMConvertToRadians(45.0f), (float)1280 / 720, 0.1f, 1000.0f);
@@ -998,10 +1037,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	   matWorld *= matTrans; //ワールド行列に平行移動を反映
 
 	   //定数バッファに転送
-	   constMapTransform->mat = matWorld * matview * matProjection;
+	   constMapTransform0->mat = matWorld * matview * matProjection;
 
 		//ワールド、ビュー、プロジェクションを合成して定数バッファーへ転送処理
-		constMapTransform->mat = matWorld * matview * matProjection;
+		constMapTransform0->mat = matWorld * matview * matProjection;
+
+
+		//2つ目
+		//ワールド変換行列
+		XMMATRIX matWorld1;
+		matWorld1 = XMMatrixIdentity();
+		
+		//各種変換行列を計算
+		XMMATRIX matScale1 = XMMatrixScaling(1.0f, 1.0f, 1.0f);
+		XMMATRIX matRot1 = XMMatrixRotationY(XM_PI / 4.0f);
+		XMMATRIX matTrans1 = XMMatrixTranslation(-20.0f, 0, 0);
+
+		//ワールド行列を合成
+		matWorld1 = matScale1 * matRot1 * matTrans1;
+
+		//ワールド、ビュー、プロジェクションを合成して定数バッファーへ転送処理
+		constMapTransform1->mat = matWorld1 * matview * matProjection;
+
+		
+
 
 		// バックバッファの番号を取得(2つなので0番か1番)
 		UINT bbIndex = swapChain->GetCurrentBackBufferIndex();
@@ -1077,11 +1136,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		D3D12_GPU_DESCRIPTOR_HANDLE srvGpuHandle = srvHeap->GetGPUDescriptorHandleForHeapStart();
 		// SRVヒープの先頭にあるSRVをルートパラメータ1番に設定
 		commandList->SetGraphicsRootDescriptorTable(1, srvGpuHandle);
-		//定数バッファビュー(CBV)の設定コマンド
-		commandList->SetGraphicsRootConstantBufferView(2, constBuffTransform->GetGPUVirtualAddress());
 
+		//1つ目
+		//定数バッファビュー(CBV)の設定コマンド
+		commandList->SetGraphicsRootConstantBufferView(2, constBuffTransform0->GetGPUVirtualAddress());
 		// 描画コマンド
 		//commandList->DrawInstanced(_countof(vertices), 1, 0, 0); // 全ての頂点を使って描画
+		commandList->DrawIndexedInstanced(_countof(indices), 1, 0, 0, 0);
+
+		//2つ目
+		//定数バッファビュー(CBV)の設定コマンド
+		commandList->SetGraphicsRootConstantBufferView(2, constBuffTransform1->GetGPUVirtualAddress());
+
+		// 描画コマンド
 		commandList->DrawIndexedInstanced(_countof(indices), 1, 0, 0, 0);
 		//////////////////////////////////////////////////////////////////////////////////////// 4.描画コマンドここまで//////////////////////////////////////////////////////////////////////////////////////
 
